@@ -1,4 +1,3 @@
-
 /* Home page. Hero letter animation, scroll-pinned 3D tub sequence and smooth wheel scrolling are
    carried over from the original site; all text/products now come from the CMS + database. */
 window.HM_PAGE = async function () {
@@ -29,7 +28,7 @@ window.HM_PAGE = async function () {
   <div class="row">${hero ? `<a class="btn p lg" href="/products/${esc(hero.slug)}">${esc(H.heroCtaLabel || "Shop now")}</a>` : ""}<a class="btn lg" href="/products">Explore products</a></div></div>
   ${hero ? `<img id="hA" class="tubA" src="${esc(tub)}" alt="" aria-hidden="true">` : ""}</div></header>
 ${strips.map((b) => `<div class="bar" style="text-transform:none">${b.link_url ? `<a href="${esc(b.link_url)}">${esc(b.title || "")} ${b.link_label ? "→ " + esc(b.link_label) : ""}</a>` : esc(b.title || "")}</div>`).join("")}
-${hero ? `<section id="in" style="height:400vh;padding:0"><div class="pin"><div class="dk"></div><div class="nw"><div class="num" id="inN">01</div></div><div id="inBar"></div><div class="ihw"><div class="ih" id="inH"></div></div><div class="ic">${[1, 2, 3, 4].map((i) => `<button data-s="${i - 1}" aria-label="Step ${i}">0${i}</button>`).join("")}</div><div class="icap" id="inC"></div></div></section>` : ""}
+${hero ? `<section id="in" style="padding:0"><div class="pin"><div class="dk"></div><div class="nw"><div class="num" id="inN">01</div></div><div id="inBar"></div><div class="ihw"><div class="ih" id="inH"></div></div><div class="ic">${[1, 2, 3, 4].map((i) => `<button data-s="${i - 1}" aria-label="Step ${i}">0${i}</button>`).join("")}</div><div class="icap" id="inC"></div></div></section>` : ""}
 <section id="shop" style="background:var(--panel)"><div class="wrap"><div class="sec-h"><div><h2 class="rv">${esc(H.productsTitle || "Shop HYPEMAX")}</h2><p class="sub rv">${esc(H.productsSubtitle || "")}</p></div><a class="link rv" href="/products">View all →</a></div>
  <div class="grid">${active.map((p) => card(p, { imgOverride: hero && p.id === hero.id ? tub : null })).join("") || '<p class="muted">Products coming soon.</p>'}</div></div></section>
 ${heroBanners.length || promos.length ? `<section><div class="wrap"><div class="banners">${[...heroBanners, ...promos].map(bannerHtml).join("")}</div></div></section>` : ""}
@@ -66,55 +65,19 @@ ${faqs.length ? `<section><div class="wrap" style="max-width:820px"><h2 class="r
       const st = document.createElement("div"); st.id = "st"; const rn = (i) => { const x = Math.sin(i * 127.1) * 43758.5453; return x - Math.floor(x); };
       const pcs = [...Array(20)].map((_, i) => { const e = document.createElement("i"); e.className = "sp"; st.append(e); return { e, a: rn(i) * 6.283, ph: i / 20 + rn(i + 50) * .03, sp: (rn(i + 9) - .5) * 720, sz: .7 + rn(i + 3) * .7 }; }); document.body.append(st);
       const c0 = $("#shop .pc .pimg img"); c0 && (c0.style.visibility = "hidden");
-
-      // Re-measure the pinned animation stage when browser zoom or viewport size changes.
-      const section = $("#in"), pin = $(".pin");
-      let cachedStageHeight = 0;
-      let cachedSectionHeight = 0;
-
-      function refreshAnimationMeasurements() {
-        cachedStageHeight = pin.getBoundingClientRect().height;
-        cachedSectionHeight = section.getBoundingClientRect().height;
-      }
-
-      refreshAnimationMeasurements();
-
-      if ("ResizeObserver" in window) {
-        const animationResizeObserver = new ResizeObserver(() => {
-          refreshAnimationMeasurements();
-        });
-        animationResizeObserver.observe(pin);
-        animationResizeObserver.observe(section);
-      }
-
-      window.addEventListener("resize", refreshAnimationMeasurements);
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", refreshAnimationMeasurements);
-      }
-
-      const viewportHeight = () => cachedStageHeight || pin.getBoundingClientRect().height;
-      const sectionTravel = () => Math.max(1, cachedSectionHeight - viewportHeight());
-
-      $$(".ic button").forEach((b) => (b.onclick = () => {
-        const S = section.getBoundingClientRect();
-        scrollTo({
-          top: scrollY + S.top + (+b.dataset.s * .19 + .095) * sectionTravel(),
-          behavior: "smooth"
-        });
-      }));
+      $$(".ic button").forEach((b) => (b.onclick = () => { const S = $("#in").getBoundingClientRect(); scrollTo({ top: scrollY + S.top + (+b.dataset.s * .19 + .095) * (S.height - $(".pin").offsetHeight), behavior: "smooth" }); }));
       let ry = 0, from = 0, to = 0, t0 = -1e9, dur = 1, step = -1;
       const L = (u, v, t) => { const o = {}; for (const k in u) o[k] = lerp(u[k], v[k], t); return o; };
       function loop(now) {
-        const vh = viewportHeight(), vw = document.documentElement.clientWidth || innerWidth, H = $("#hA").getBoundingClientRect(), S = section.getBoundingClientRect(), B = $("#inBar").getBoundingClientRect(), N = $("#shop").getBoundingClientRect(), C = c0 && c0.getBoundingClientRect();
-        const travelDistance = sectionTravel();
-        const p = cl(-S.top / travelDistance), q = cl((p - .76) / .24), sn = Math.floor(Math.min(p, .759) / .19);
+        const vh = innerHeight, vw = innerWidth, H = $("#hA").getBoundingClientRect(), S = $("#in").getBoundingClientRect(), B = $("#inBar").getBoundingClientRect(), N = $("#shop").getBoundingClientRect(), C = c0 && c0.getBoundingClientRect();
+        const pv = $(".pin").offsetHeight || vh, p = cl(-S.top / Math.max(1, S.height - pv)), q = cl((p - .76) / .24), sn = Math.floor(Math.min(p, .759) / .19);
         if (sn !== step) { const first = step < 0; step = sn; from = ry; to = ANG[sn]; if (first || R0) { ry = from = to; setStep(sn, 1); circ(sn); } else { circ(sn); dur = 720 * cl(Math.abs(to - ry) / 180, .4, 2); t0 = now; setTimeout(() => setStep(sn), .38 * Math.min(dur, 720)); } }
         ry = now - t0 < dur ? lerp(from, to, -(Math.cos(Math.PI * (now - t0) / dur) - 1) / 2) : to;
         const fl = R0 ? 0 : Math.sin(now / 4600 * 6.283), bob = R0 ? 0 : Math.sin(now / 2600 * 6.283) * 6;
         let s = { x: H.left + H.width / 2, y: H.top + H.height / 2 + fl * 9, h: H.height, rz: fl * .6, ry: 0 };
         const b = { x: B.left + B.width / 2, y: B.top + B.height / 2 + bob, h: B.height, rz: 14, ry: ry + 720 * q }, p1 = cl(1 - S.top / vh), p3 = cl((vh - N.top) / (.7 * vh));
         if (p1 > 0) s = L(s, b, ez(p1)); if (p3 > 0 && C && C.height) s = L(s, { x: C.left + C.width / 2, y: C.top + C.height / 2, h: C.height * .9, rz: 0, ry: Math.round(b.ry / 360) * 360 }, ez(p3));
-        const w = s.h * ar; tr.style.width = w + "px"; tr.style.height = s.h + "px"; tr.style.transform = `translate3d(${s.x - w / 2}px,${s.y - s.h / 2}px,0) perspective(1400px) rotateZ(${s.rz}deg) rotateY(${s.ry}deg)`;
+        const w = s.h * ar; tr.style.width = w + "px"; tr.style.height = s.h + "px"; tr.style.transform = `translate(${s.x - w / 2}px,${s.y - s.h / 2}px) perspective(1400px) rotateZ(${s.rz}deg) rotateY(${s.ry}deg)`;
         // keep the travelling tub under the sticky header once it has landed in the product card
         tr.style.zIndex = p3 >= 1 ? 1 : 5;
         const f = 1 - cl(4 * q); $$(".nw,.ihw,.ic,.icap").forEach((e) => (e.style.opacity = f)); $(".dk").style.opacity = cl(3.5 * q) * .42;
