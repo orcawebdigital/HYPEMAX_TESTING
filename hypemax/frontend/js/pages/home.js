@@ -1,3 +1,4 @@
+
 /* Home page. Hero letter animation, scroll-pinned 3D tub sequence and smooth wheel scrolling are
    carried over from the original site; all text/products now come from the CMS + database. */
 window.HM_PAGE = async function () {
@@ -6,7 +7,6 @@ window.HM_PAGE = async function () {
   const [S, products, faqs, testimonials] = await Promise.all([site(), api("/api/products").catch(() => []), api("/api/faqs").catch(() => []), api("/api/testimonials").catch(() => [])]);
   const H = S.homepage || {}, images = S.images || {};
   const hero = products.find((p) => p.featured && p.purchasable) || products.find((p) => p.purchasable) || products[0];
-  // Transparent cut-out used by the 3D animation (CMS "hero" slot, else the original asset)
   const tub = images.hero || "/img/product.png";
 
   const title = H.heroTitle || "UNLEASH YOUR MAX POTENTIAL.";
@@ -65,24 +65,66 @@ ${faqs.length ? `<section><div class="wrap" style="max-width:820px"><h2 class="r
       const st = document.createElement("div"); st.id = "st"; const rn = (i) => { const x = Math.sin(i * 127.1) * 43758.5453; return x - Math.floor(x); };
       const pcs = [...Array(20)].map((_, i) => { const e = document.createElement("i"); e.className = "sp"; st.append(e); return { e, a: rn(i) * 6.283, ph: i / 20 + rn(i + 50) * .03, sp: (rn(i + 9) - .5) * 720, sz: .7 + rn(i + 3) * .7 }; }); document.body.append(st);
       const c0 = $("#shop .pc .pimg img"); c0 && (c0.style.visibility = "hidden");
-      $$(".ic button").forEach((b) => (b.onclick = () => { const S = $("#in").getBoundingClientRect(); scrollTo({ top: scrollY + S.top + (+b.dataset.s * .19 + .095) * (S.height - innerHeight), behavior: "smooth" }); }));
+
+      // Android-safe scroll measurements using the actual sticky stage.
+      const section = $("#in"), pin = $(".pin");
+      const viewportHeight = () => pin.getBoundingClientRect().height || document.documentElement.clientHeight || innerHeight;
+      const sectionTravel = () => Math.max(1, section.offsetHeight - pin.offsetHeight);
+
+      $$(".ic button").forEach((b) => (b.onclick = () => {
+        const S = section.getBoundingClientRect();
+        scrollTo({ top: scrollY + S.top + (+b.dataset.s * .19 + .095) * sectionTravel(), behavior: "smooth" });
+      }));
+
       let ry = 0, from = 0, to = 0, t0 = -1e9, dur = 1, step = -1;
       const L = (u, v, t) => { const o = {}; for (const k in u) o[k] = lerp(u[k], v[k], t); return o; };
+
       function loop(now) {
-        const vh = innerHeight, vw = innerWidth, H = $("#hA").getBoundingClientRect(), S = $("#in").getBoundingClientRect(), B = $("#inBar").getBoundingClientRect(), N = $("#shop").getBoundingClientRect(), C = c0 && c0.getBoundingClientRect();
-        const p = cl(-S.top / (S.height - vh)), q = cl((p - .76) / .24), sn = Math.floor(Math.min(p, .759) / .19);
-        if (sn !== step) { const first = step < 0; step = sn; from = ry; to = ANG[sn]; if (first || R0) { ry = from = to; setStep(sn, 1); circ(sn); } else { circ(sn); dur = 720 * cl(Math.abs(to - ry) / 180, .4, 2); t0 = now; setTimeout(() => setStep(sn), .38 * Math.min(dur, 720)); } }
+        const vh = viewportHeight(), vw = document.documentElement.clientWidth || innerWidth;
+        const H = $("#hA").getBoundingClientRect(), S = section.getBoundingClientRect(), B = $("#inBar").getBoundingClientRect(), N = $("#shop").getBoundingClientRect(), C = c0 && c0.getBoundingClientRect();
+
+        const p = cl(-S.top / sectionTravel()), q = cl((p - .76) / .24), sn = Math.min(3, Math.floor(Math.min(p, .759) / .19));
+
+        if (sn !== step) {
+          const first = step < 0;
+          step = sn; from = ry; to = ANG[sn];
+          if (first || R0) {
+            ry = from = to; setStep(sn, 1); circ(sn);
+          } else {
+            circ(sn); dur = 720 * cl(Math.abs(to - ry) / 180, .4, 2);
+            t0 = now;
+            setTimeout(() => setStep(sn), .38 * Math.min(dur, 720));
+          }
+        }
+
         ry = now - t0 < dur ? lerp(from, to, -(Math.cos(Math.PI * (now - t0) / dur) - 1) / 2) : to;
         const fl = R0 ? 0 : Math.sin(now / 4600 * 6.283), bob = R0 ? 0 : Math.sin(now / 2600 * 6.283) * 6;
         let s = { x: H.left + H.width / 2, y: H.top + H.height / 2 + fl * 9, h: H.height, rz: fl * .6, ry: 0 };
-        const b = { x: B.left + B.width / 2, y: B.top + B.height / 2 + bob, h: B.height, rz: 14, ry: ry + 720 * q }, p1 = cl(1 - S.top / vh), p3 = cl((vh - N.top) / (.7 * vh));
-        if (p1 > 0) s = L(s, b, ez(p1)); if (p3 > 0 && C && C.height) s = L(s, { x: C.left + C.width / 2, y: C.top + C.height / 2, h: C.height * .9, rz: 0, ry: Math.round(b.ry / 360) * 360 }, ez(p3));
-        const w = s.h * ar; tr.style.width = w + "px"; tr.style.height = s.h + "px"; tr.style.transform = `translate(${s.x - w / 2}px,${s.y - s.h / 2}px) perspective(1400px) rotateZ(${s.rz}deg) rotateY(${s.ry}deg)`;
-        // keep the travelling tub under the sticky header once it has landed in the product card
+        const b = { x: B.left + B.width / 2, y: B.top + B.height / 2 + bob, h: B.height, rz: 14, ry: ry + 720 * q };
+        const p1 = cl(1 - S.top / vh), p3 = cl((vh - N.top) / (.7 * vh));
+
+        if (p1 > 0) s = L(s, b, ez(p1));
+        if (p3 > 0 && C && C.height) s = L(s, { x: C.left + C.width / 2, y: C.top + C.height / 2, h: C.height * .9, rz: 0, ry: Math.round(b.ry / 360) * 360 }, ez(p3));
+
+        const w = s.h * ar;
+        tr.style.width = w + "px";
+        tr.style.height = s.h + "px";
+        tr.style.transform = `translate3d(${s.x - w / 2}px,${s.y - s.h / 2}px,0) perspective(1400px) rotateZ(${s.rz}deg) rotateY(${s.ry}deg)`;
         tr.style.zIndex = p3 >= 1 ? 1 : 5;
-        const f = 1 - cl(4 * q); $$(".nw,.ihw,.ic,.icap").forEach((e) => (e.style.opacity = f)); $(".dk").style.opacity = cl(3.5 * q) * .42;
+
+        const f = 1 - cl(4 * q);
+        $$(".nw,.ihw,.ic,.icap").forEach((e) => (e.style.opacity = f));
+        $(".dk").style.opacity = cl(3.5 * q) * .42;
+
         const R = .55 * Math.hypot(vw, vh), bs = .085 * Math.min(vw, vh), cy = B.top + B.height / 2;
-        pcs.forEach((o) => { const t = cl((q - .45 * o.ph) / .55); if (R0 || q <= 0 || q >= 1 || t <= 0 || t >= 1) { o.e.style.opacity = 0; return; } const r = (.06 + t ** 1.5 * .95) * R; o.e.style.opacity = Math.sin(Math.PI * t) * cl(5 * q) * cl(6 * (1 - q)); o.e.style.transform = `translate(${vw / 2 + Math.cos(o.a) * r}px,${cy + Math.sin(o.a) * r * .8}px) translate(-50%,-50%) rotate(${o.sp * t}deg) scale(${(.2 + 1.7 * t) * o.sz * bs / 44})`; });
+        pcs.forEach((o) => {
+          const t = cl((q - .45 * o.ph) / .55);
+          if (R0 || q <= 0 || q >= 1 || t <= 0 || t >= 1) { o.e.style.opacity = 0; return; }
+          const r = (.06 + t ** 1.5 * .95) * R;
+          o.e.style.opacity = Math.sin(Math.PI * t) * cl(5 * q) * cl(6 * (1 - q));
+          o.e.style.transform = `translate(${vw / 2 + Math.cos(o.a) * r}px,${cy + Math.sin(o.a) * r * .8}px) translate(-50%,-50%) rotate(${o.sp * t}deg) scale(${(.2 + 1.7 * t) * o.sz * bs / 44})`;
+        });
+
         requestAnimationFrame(loop);
       }
       requestAnimationFrame(loop);
@@ -92,9 +134,20 @@ ${faqs.length ? `<section><div class="wrap" style="max-width:820px"><h2 class="r
   // ---------- original smooth wheel scrolling (desktop, motion allowed) ----------
   function smoothWheel() {
     if (matchMedia("(pointer:coarse),(prefers-reduced-motion:reduce)").matches) return;
-    let tg = 0, cu = 0, raf = 0, last = 0; const mx = () => document.documentElement.scrollHeight - innerHeight;
-    const st = (t) => { const dt = Math.min(50, t - last); last = t; cu += (tg - cu) * (1 - Math.exp(-dt / 120)); if (Math.abs(tg - cu) < .5) { scrollTo(0, tg); raf = 0; return; } scrollTo(0, cu); raf = requestAnimationFrame(st); };
-    addEventListener("wheel", (e) => { if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.target.closest(".tblw,.gal .track,.search-pop")) return; e.preventDefault(); if (!raf) { tg = cu = scrollY; last = performance.now(); raf = requestAnimationFrame(st); } tg = Math.min(mx(), Math.max(0, tg + e.deltaY)); }, { passive: false });
+    let tg = 0, cu = 0, raf = 0, last = 0;
+    const mx = () => document.documentElement.scrollHeight - innerHeight;
+    const st = (t) => {
+      const dt = Math.min(50, t - last); last = t;
+      cu += (tg - cu) * (1 - Math.exp(-dt / 120));
+      if (Math.abs(tg - cu) < .5) { scrollTo(0, tg); raf = 0; return; }
+      scrollTo(0, cu); raf = requestAnimationFrame(st);
+    };
+    addEventListener("wheel", (e) => {
+      if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.target.closest(".tblw,.gal .track,.search-pop")) return;
+      e.preventDefault();
+      if (!raf) { tg = cu = scrollY; last = performance.now(); raf = requestAnimationFrame(st); }
+      tg = Math.min(mx(), Math.max(0, tg + e.deltaY));
+    }, { passive: false });
     ["keydown", "pointerdown"].forEach((v) => addEventListener(v, () => { cancelAnimationFrame(raf); raf = 0; }));
   }
 };
